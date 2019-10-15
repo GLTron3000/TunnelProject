@@ -10,11 +10,7 @@
 #include <linux/if.h>
 #include <linux/if_tun.h>
 
-
-
-
-int tun_alloc(char *dev)
-{
+int tun_alloc(char *dev){
   struct ifreq ifr;
   int fd, err;
 
@@ -42,7 +38,22 @@ int tun_alloc(char *dev)
   return fd;
 }      
 
-void copy(int src, int dst){
+void tun_load_config(char *dev){
+  char strUp[80];
+  strcpy(strUp, "ip link set ");
+  strcpy(strUp, dev);
+  strcpy(strUp, " up");
+
+  system(strUp);
+
+
+  char strAddr[80];
+  strcpy(strAddr, "ip addr add 172.16.2.1/24 dev ");
+  strcpy(strAddr, dev);
+  system(strAddr);
+}
+
+void tun_copy_output(int src, int dst){
     char buffer[20];
     size_t nbytes;
     ssize_t bytes_read;
@@ -55,22 +66,3 @@ void copy(int src, int dst){
     }
     while(bytes_read != 0);
 }
-
-int main (int argc, char** argv){
-
-  int tunfd;
-  printf("CrÃ©ation de %s\n",argv[1]);
-  tunfd = tun_alloc(argv[1]);
-  printf("Faire la configuration de %s...\n",argv[1]);
-  printf("Appuyez sur une touche pour continuer\n");
-  getchar();
-  printf("Interface %s ConfigurÃ©e:\n",argv[1]);
-  //system("ip addr");
-  system("./configure-tun.sh");
-  copy(tunfd, 1);
-  printf("Appuyez sur une touche pour terminer\n");
-  getchar();
-
-  return 0;
-}
-

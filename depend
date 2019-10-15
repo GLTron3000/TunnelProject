@@ -1,0 +1,3 @@
+extremite.o: extremite.c
+iftun.o: iftun.c
+main.o: main.c extremite.h iftun.h

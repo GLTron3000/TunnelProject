@@ -11,7 +11,7 @@
 #define MAXLIGNE 64
 #define PORT 123
 
-int ext-in()
+int ext_in()
 {
   char * hote; /* nom d'hÃ´te du  serveur */   
   char * port; /* port TCP du serveur */   
@@ -95,7 +95,7 @@ int ext-in()
 
 void echo(int f, char* hote, char* port);
 
-int ext-out()
+int ext_out()
 {
   int s,n; /* descripteurs de socket */
   int len,on; /* utilitaires divers */
