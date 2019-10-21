@@ -9,11 +9,11 @@
 #include <arpa/inet.h>
 
 #define MAXLIGNE 64
-#define PORT 123
+#define PORT "123"
 
 int ext_in(char * hote, int fd)
 {  
-  int port; /* port TCP du serveur */   
+  char * port; /* port TCP du serveur */   
   char ip[NI_MAXHOST]; /* adresse IPv4 en notation pointÃ©e */
   struct addrinfo *resol; /* struct pour la rÃ©solution de nom */
   int s; /* descripteur de socket */
@@ -22,7 +22,7 @@ int ext_in(char * hote, int fd)
 
   /* RÃ©solution de l'hÃ´te */
   if ( getaddrinfo(hote,port,NULL, &resol) < 0 ){
-    perror("rÃ©solution adresse");
+    perror("résolution adresse");
     exit(2);
   }
 
@@ -35,38 +35,42 @@ int ext_in(char * hote, int fd)
     perror("allocation de socket");
     exit(3);
   }
-  fprintf(stderr,"le nÂ° de la socket est : %i\n",s);
+  fprintf(stderr,"le n° de la socket est : %i\n",s);
 
   /* Connexion */
-  fprintf(stderr, "Essai de connexion Ã  %s (%s) sur le port %s\n\n", hote, ip, port);
+  fprintf(stderr, "Essai de connexion à %s (%s) sur le port %s\n\n", hote, ip, port);
   if (connect(s, resol->ai_addr, sizeof(struct sockaddr_in)) < 0) {
     perror("connexion");
     exit(4);
   }
   freeaddrinfo(resol); /* /!\ LibÃ©ration mÃ©:wqmoire */
-
   /* Session */
   char tampon[MAXLIGNE + 3]; /* tampons pour les communications */
   ssize_t lu;
   int fini=0;
   while( 1 ) { 
+
     /* Jusqu'Ã  fermeture de la socket (ou de stdin)     */
     /* recopier Ã  l'Ã©cran ce qui est lu dans la socket  */
     /* recopier dans la socket ce qui est lu dans stdin */
 
     /* rÃ©ception des donnÃ©es */
-    lu = recv(s,tampon,MAXLIGNE,0); /* bloquant */
-    if (lu == 0 ) {
-      fprintf(stderr,"Connexion terminÃ©e par l'hÃ´te distant\n");
-      break; /* On sort de la boucle infinie */
-    }
-    tampon[lu] = '\0';
-    printf("reÃ§u: %s",tampon);
-    if ( fini == 1 )
-      break;  /* on sort de la boucle infinie*/
+    //lu = recv(s,tampon,MAXLIGNE,0); /* bloquant */
+    //if (lu == 0 ) {
+    //  fprintf(stderr,"Connexion terminÃ©e par l'hÃ´te distant\n");
+    //  break; /* On sort de la boucle infinie */
+    //}
+    //tampon[lu] = '\0';
+    //printf("reÃ§u: %s",tampon);
     
-    /* recopier dans la socket ce qui est entrÃ© au clavier */    
-    if ( fgets(tampon, MAXLIGNE - 2, fd) == NULL ){/* entrÃ©e standard fermÃ©e */
+    
+    if ( fini == 1 ) break;
+    
+    size_t nbytes;
+    ssize_t bytes_read;
+    nbytes = sizeof(tampon);
+    bytes_read = read(fd, tampon, nbytes);
+    if (bytes_read == 0 ){/* entrÃ©e standard fermÃ©e */
       fini=1;
       shutdown(s, SHUT_WR); /* terminaison explicite de la socket dans le sens client -> serveur */
       /* On ne sort pas de la boucle tout de suite ... */
@@ -82,7 +86,44 @@ int ext_in(char * hote, int fd)
 }
 
 
-int ext_out()
+void writeInFD(int f, char* hote, char* port, int fd)
+{
+  ssize_t lu; /* nb d'octets reÃ§us */
+  char msg[MAXLIGNE+1]; /* tampons pour les communications */ 
+  char tampon[MAXLIGNE+1]; 
+  int pid = getpid(); /* pid du processus */
+  int compteur=0;
+  
+  do { /* Faire echo et logguer */
+    lu = recv(f,tampon,MAXLIGNE,0);
+    if (lu > 0 )
+      {
+        compteur++;
+        tampon[lu] = '\0';
+        /* log */
+        fprintf(stderr,"[%s:%s](%i): %3i :%s",hote,port,pid,compteur,tampon);
+        snprintf(msg,MAXLIGNE,"%s",tampon);
+        printf("%s",msg);
+
+
+        size_t nbytes;
+        nbytes = sizeof(tampon);
+
+
+        write(fd, tampon, nbytes);
+        /* echo vers le client */
+        //send(f, msg, strlen(msg),0);
+      } else {
+        break;
+      }
+  } while ( 1 );
+       
+  /* le correspondant a quittÃ© */
+  close(f);
+  fprintf(stderr,"[%s:%s](%i): Terminé.\n",hote,port,pid);
+}
+
+int ext_out(int fd)
 {
   int s,n; /* descripteurs de socket */
   int len,on; /* utilitaires divers */
@@ -91,7 +132,7 @@ int ext_out()
                            PF_INET,SOCK_STREAM,0, /* IP mode connectÃ© */
                            0,NULL,NULL,NULL};
   struct sockaddr_in client; /* adresse de socket du client */
-  int port; /* Port pour le service */
+  char * port; /* Port pour le service */
   int err; /* code d'erreur */
   
   port = PORT;
@@ -144,40 +185,11 @@ int ext_out()
       fprintf(stderr,"accept! (%i) ip=%s port=%s\n",n,hotec,portc);
     }
     /* traitement */
-    echo(n,hotec,portc);
+    writeInFD(n, hotec, portc, fd);
   }
   return EXIT_SUCCESS;
 }
 
-/* echo des messages reÃ§us (le tout via le descripteur f) */
-void echo(int f, char* hote, char* port)
-{
-  ssize_t lu; /* nb d'octets reÃ§us */
-  char msg[MAXLIGNE+1]; /* tampons pour les communications */ 
-  char tampon[MAXLIGNE+1]; 
-  int pid = getpid(); /* pid du processus */
-  int compteur=0;
-  
-  do { /* Faire echo et logguer */
-    lu = recv(f,tampon,MAXLIGNE,0);
-    if (lu > 0 )
-      {
-        compteur++;
-        tampon[lu] = '\0';
-        /* log */
-        fprintf(stderr,"[%s:%s](%i): %3i :%s",hote,port,pid,compteur,tampon);
-        snprintf(msg,MAXLIGNE,"> %s",tampon);
-        printf("%s",msg);
-        /* echo vers le client */
-        //send(f, msg, strlen(msg),0);
-      } else {
-        break;
-      }
-  } while ( 1 );
-       
-  /* le correspondant a quittÃ© */
-  send(f,CIAO,strlen(CIAO),0);
-  close(f);
-  fprintf(stderr,"[%s:%s](%i): TerminÃ©.\n",hote,port,pid);
-}
+
+
 
