@@ -12,7 +12,9 @@ int main (int argc, char** argv){
   printf("Faire la configuration de %s...\n",argv[1]);  
 
   tun_load_config(argv[1]);
-  tun_copy_output(tunfd, 1);
+  //tun_copy_output(tunfd, 1);
+
+  ext_in("localhost", tunfd);
 
   printf("Appuyez sur une touche pour terminer\n");
   getchar();

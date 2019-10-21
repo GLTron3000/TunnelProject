@@ -11,21 +11,14 @@
 #define MAXLIGNE 64
 #define PORT 123
 
-int ext_in()
-{
-  char * hote; /* nom d'hÃ´te du  serveur */   
-  char * port; /* port TCP du serveur */   
+int ext_in(char * hote, int fd)
+{  
+  int port; /* port TCP du serveur */   
   char ip[NI_MAXHOST]; /* adresse IPv4 en notation pointÃ©e */
   struct addrinfo *resol; /* struct pour la rÃ©solution de nom */
   int s; /* descripteur de socket */
 
-  /* Traitement des arguments */
-  if (argc!=3) {/* erreur de syntaxe */
-    printf("Usage: %s hote port\n",argv[0]);
-    exit(1);
-  }
-  hote=argv[1]; /* nom d'hÃ´te du  serveur */   
-  port=argv[2]; /* port TCP du serveur */   
+  port=PORT;
 
   /* RÃ©solution de l'hÃ´te */
   if ( getaddrinfo(hote,port,NULL, &resol) < 0 ){
@@ -45,9 +38,8 @@ int ext_in()
   fprintf(stderr,"le nÂ° de la socket est : %i\n",s);
 
   /* Connexion */
-  fprintf(stderr,"Essai de connexion Ã  %s (%s) sur le port %s\n\n",
-	  hote,ip,port);
-  if (connect(s,resol->ai_addr,sizeof(struct sockaddr_in))<0) {
+  fprintf(stderr, "Essai de connexion Ã  %s (%s) sur le port %s\n\n", hote, ip, port);
+  if (connect(s, resol->ai_addr, sizeof(struct sockaddr_in)) < 0) {
     perror("connexion");
     exit(4);
   }
@@ -74,12 +66,9 @@ int ext_in()
       break;  /* on sort de la boucle infinie*/
     
     /* recopier dans la socket ce qui est entrÃ© au clavier */    
-    if ( fgets(tampon,MAXLIGNE - 2,stdin) == NULL ){/* entrÃ©e standard fermÃ©e */
+    if ( fgets(tampon, MAXLIGNE - 2, fd) == NULL ){/* entrÃ©e standard fermÃ©e */
       fini=1;
-      fprintf(stderr,"Connexion terminÃ©e !!\n");
-      fprintf(stderr,"HÃ´te distant informÃ©...\n");
-      shutdown(s, SHUT_WR); /* terminaison explicite de la socket 
-			     dans le sens client -> serveur */
+      shutdown(s, SHUT_WR); /* terminaison explicite de la socket dans le sens client -> serveur */
       /* On ne sort pas de la boucle tout de suite ... */
     }else{   /* envoi des donnÃ©es */
       send(s,tampon,strlen(tampon),0);
@@ -93,8 +82,6 @@ int ext_in()
 }
 
 
-void echo(int f, char* hote, char* port);
-
 int ext_out()
 {
   int s,n; /* descripteurs de socket */
@@ -104,16 +91,11 @@ int ext_out()
                            PF_INET,SOCK_STREAM,0, /* IP mode connectÃ© */
                            0,NULL,NULL,NULL};
   struct sockaddr_in client; /* adresse de socket du client */
-  char * port; /* Port pour le service */
+  int port; /* Port pour le service */
   int err; /* code d'erreur */
   
-  /* Traitement des arguments */
-  if (argc!=2) { /* erreur de syntaxe */
-    printf("Usage: %s port\n",argv[0]);
-    exit(1);
-  }
-  
-  port=argv[1]; fprintf(stderr,"Ecoute sur le port %s\n",port);
+  port = PORT;
+
   err = getaddrinfo(NULL,port,&indic,&resol); 
   if (err<0){
     fprintf(stderr,"RÃ©solution: %s\n",gai_strerror(err));
@@ -125,7 +107,6 @@ int ext_out()
     perror("allocation de socket");
     exit(3);
   }
-  fprintf(stderr,"le nÂ° de la socket est : %i\n",s);
 
   /* On rend le port rÃ©utilisable rapidement /!\ */
   on = 1;
@@ -133,7 +114,6 @@ int ext_out()
     perror("option socket");
     exit(4);
   }
-  fprintf(stderr,"Option(s) OK!\n");
 
   /* Association de la socket s Ã  l'adresse obtenue par rÃ©solution */
   if (bind(s,resol->ai_addr,sizeof(struct sockaddr_in))<0) {
@@ -141,14 +121,12 @@ int ext_out()
     exit(5);
   }
   freeaddrinfo(resol); /* /!\ LibÃ©ration mÃ©moire */
-  fprintf(stderr,"bind!\n");
 
   /* la socket est prÃªte Ã  recevoir */
   if (listen(s,SOMAXCONN)<0) {
     perror("listen");
     exit(6);
   }
-  fprintf(stderr,"listen!\n");
 
   while(1) {
     /* attendre et gÃ©rer indÃ©finiment les connexions entrantes */
@@ -180,11 +158,6 @@ void echo(int f, char* hote, char* port)
   int pid = getpid(); /* pid du processus */
   int compteur=0;
   
-  /* message d'accueil */
-  snprintf(msg,MAXLIGNE,"Bonjour %s! (vous utilisez le port %s)\n",hote,port);
-  /* envoi du message d'accueil */
-  send(f,msg,strlen(msg),0);
-  
   do { /* Faire echo et logguer */
     lu = recv(f,tampon,MAXLIGNE,0);
     if (lu > 0 )
@@ -194,8 +167,9 @@ void echo(int f, char* hote, char* port)
         /* log */
         fprintf(stderr,"[%s:%s](%i): %3i :%s",hote,port,pid,compteur,tampon);
         snprintf(msg,MAXLIGNE,"> %s",tampon);
+        printf("%s",msg);
         /* echo vers le client */
-        send(f, msg, strlen(msg),0);
+        //send(f, msg, strlen(msg),0);
       } else {
         break;
       }
