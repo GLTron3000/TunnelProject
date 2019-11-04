@@ -4,7 +4,7 @@ MKDEP   = gcc -MM
 RM      = rm -f
 
 CFLAGS  = -Wall -std=gnu99 -pedantic -O2
-LIBS    = 
+LIBS    = -lpthread
 
 CFILES  = main.c extremite.c iftun.c
 

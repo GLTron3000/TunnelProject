@@ -7,9 +7,112 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <pthread.h>
 
 #define MAXLIGNE 64
 #define PORT "123"
+
+typedef struct{
+	  int fd;
+    int socket;
+} ThreadData;
+
+void * out_handler(void *args){
+  printf("[OUT HANDLER] 0\n");
+  ssize_t lu; /* nb d'octets reÃ§us */
+  char msg[MAXLIGNE+1]; /* tampons pour les communications */ 
+  char tampon[MAXLIGNE+1]; 
+  int compteur=0;
+  
+  ThreadData *threadData = args;
+
+	int socket = threadData->socket;
+  int fd = threadData->fd;
+
+  printf("[OUT HANDLER] 1 | %d %d\n", socket, fd);
+  
+  do { /* Faire echo et logguer */
+    printf("[OUT HANDLER] 2\n");
+    lu = recv(socket,tampon,MAXLIGNE,0);
+    printf("[OUT HANDLER] 2.5 | %ld\n", lu);
+    if (lu > 0 )
+      {
+        printf("[OUT HANDLER] 3\n");
+        compteur++;
+        tampon[lu] = '\0';
+        /* log */
+        //fprintf(stderr,"[%s:%s](%i): %3i :%s",hote,port,pid,compteur,tampon);
+        snprintf(msg,MAXLIGNE,"%s",tampon);
+        printf("%s",msg);
+
+        size_t nbytes;
+        nbytes = sizeof(tampon);
+
+        write(fd, tampon, nbytes);
+        /* echo vers le client */
+        //send(f, msg, strlen(msg),0);
+        printf("[OUT HANDLER] 4\n");
+      } else {
+        break;
+      }
+  } while ( 1 );
+       
+  printf("[OUT HANDLER] 5\n");
+  /* le correspondant a quittÃ© */
+  close(socket);
+  //fprintf(stderr,"[%s:%s](%i): Terminé.\n",hote,port,pid);
+
+  printf("[OUT HANDLER] EXIT\n");
+  pthread_exit(NULL);
+}
+
+void * in_handler(void *args){
+  printf("[IN HANDLER] 0\n");
+  char tampon[MAXLIGNE + 3]; /* tampons pour les communications */
+  char msg[MAXLIGNE+1]; /* tampons pour les communications */ 
+
+  int fini=0;
+
+  ThreadData *threadData = args;
+
+	int socket = threadData->socket;
+  int fd = threadData->fd;
+
+  
+
+  printf("[IN HANDLER] 1 | %d %d\n", socket, fd);
+  while( 1 ) {     
+    printf("[IN HANDLER] 2\n");
+    if ( fini == 1 ) break;
+
+    size_t nbytes;
+    ssize_t bytes_read;
+    nbytes = sizeof(tampon);
+    bytes_read = read(fd, tampon, nbytes);
+    printf("[IN HANDLER] 3\n");
+    if (bytes_read == 0 ){/* entrÃ©e standard fermÃ©e */
+      printf("[IN HANDLER] 4\n");
+      fini=1;
+      shutdown(socket, SHUT_WR); 
+    }else{  
+      printf("[IN HANDLER] 5 | %ld\n", bytes_read);
+      snprintf(msg,MAXLIGNE,"%s",tampon);
+      printf("%s",msg);
+      send(socket,tampon,strlen(tampon),0);
+    }
+  } 
+  /* Destruction de la socket */
+  close(socket);
+
+  printf("[IN HANDLER] 6\n");
+  fprintf(stderr,"Fin de la session.\n");
+
+  printf("[IN HANDLER] EXIT\n");
+  pthread_exit(NULL);
+}
+
+
+
 
 int ext_in(char * hote, int fd)
 {  
@@ -44,84 +147,31 @@ int ext_in(char * hote, int fd)
     exit(4);
   }
   freeaddrinfo(resol); /* /!\ LibÃ©ration mÃ©:wqmoire */
+
+
   /* Session */
-  char tampon[MAXLIGNE + 3]; /* tampons pour les communications */
-  ssize_t lu;
-  int fini=0;
-  while( 1 ) { 
+  pthread_t thread_in;
+  pthread_t thread_out;
+  ThreadData *args = malloc(sizeof *args);
+  args->socket = s;
+  args->fd = fd;
 
-    /* Jusqu'Ã  fermeture de la socket (ou de stdin)     */
-    /* recopier Ã  l'Ã©cran ce qui est lu dans la socket  */
-    /* recopier dans la socket ce qui est lu dans stdin */
+  printf("[IN] 1\n");
+  pthread_create(&thread_out, NULL, out_handler, args);
+  printf("[IN] 2\n");
+  pthread_create(&thread_in, NULL, in_handler, args);
 
-    /* rÃ©ception des donnÃ©es */
-    //lu = recv(s,tampon,MAXLIGNE,0); /* bloquant */
-    //if (lu == 0 ) {
-    //  fprintf(stderr,"Connexion terminÃ©e par l'hÃ´te distant\n");
-    //  break; /* On sort de la boucle infinie */
-    //}
-    //tampon[lu] = '\0';
-    //printf("reÃ§u: %s",tampon);
-    
-    
-    if ( fini == 1 ) break;
-    
-    size_t nbytes;
-    ssize_t bytes_read;
-    nbytes = sizeof(tampon);
-    bytes_read = read(fd, tampon, nbytes);
-    if (bytes_read == 0 ){/* entrÃ©e standard fermÃ©e */
-      fini=1;
-      shutdown(s, SHUT_WR); /* terminaison explicite de la socket dans le sens client -> serveur */
-      /* On ne sort pas de la boucle tout de suite ... */
-    }else{   /* envoi des donnÃ©es */
-      send(s,tampon,strlen(tampon),0);
-    }
-  } 
-  /* Destruction de la socket */
-  close(s);
+  printf("[IN] 3\n");
+
+  pthread_join(thread_out, NULL);
+  printf("[IN] 4\n");
+  pthread_join(thread_in, NULL);
+  printf("[IN] 5\n");
 
   fprintf(stderr,"Fin de la session.\n");
   return EXIT_SUCCESS;
 }
 
-
-void writeInFD(int f, char* hote, char* port, int fd)
-{
-  ssize_t lu; /* nb d'octets reÃ§us */
-  char msg[MAXLIGNE+1]; /* tampons pour les communications */ 
-  char tampon[MAXLIGNE+1]; 
-  int pid = getpid(); /* pid du processus */
-  int compteur=0;
-  
-  do { /* Faire echo et logguer */
-    lu = recv(f,tampon,MAXLIGNE,0);
-    if (lu > 0 )
-      {
-        compteur++;
-        tampon[lu] = '\0';
-        /* log */
-        fprintf(stderr,"[%s:%s](%i): %3i :%s",hote,port,pid,compteur,tampon);
-        snprintf(msg,MAXLIGNE,"%s",tampon);
-        printf("%s",msg);
-
-
-        size_t nbytes;
-        nbytes = sizeof(tampon);
-
-
-        write(fd, tampon, nbytes);
-        /* echo vers le client */
-        //send(f, msg, strlen(msg),0);
-      } else {
-        break;
-      }
-  } while ( 1 );
-       
-  /* le correspondant a quittÃ© */
-  close(f);
-  fprintf(stderr,"[%s:%s](%i): Terminé.\n",hote,port,pid);
-}
 
 int ext_out(int fd)
 {
@@ -139,7 +189,7 @@ int ext_out(int fd)
 
   err = getaddrinfo(NULL,port,&indic,&resol); 
   if (err<0){
-    fprintf(stderr,"RÃ©solution: %s\n",gai_strerror(err));
+    fprintf(stderr,"Résolution: %s\n",gai_strerror(err));
     exit(2);
   }
 
@@ -169,7 +219,6 @@ int ext_out(int fd)
     exit(6);
   }
 
-  while(1) {
     /* attendre et gÃ©rer indÃ©finiment les connexions entrantes */
     len=sizeof(struct sockaddr_in);
     if( (n=accept(s,(struct sockaddr *)&client,(socklen_t*)&len)) < 0 ) {
@@ -180,16 +229,35 @@ int ext_out(int fd)
     char hotec[NI_MAXHOST];  char portc[NI_MAXSERV];
     err = getnameinfo((struct sockaddr*)&client,len,hotec,NI_MAXHOST,portc,NI_MAXSERV,0);
     if (err < 0 ){
-      fprintf(stderr,"rÃ©solution client (%i): %s\n",n,gai_strerror(err));
+      fprintf(stderr,"résolution client (%i): %s\n",n,gai_strerror(err));
     }else{ 
       fprintf(stderr,"accept! (%i) ip=%s port=%s\n",n,hotec,portc);
     }
+
+
     /* traitement */
-    writeInFD(n, hotec, portc, fd);
-  }
+    pthread_t thread_in;
+    pthread_t thread_out;
+		ThreadData *args = malloc(sizeof *args);
+		args->socket = n;
+		args->fd = fd;
+
+    ThreadData *args2 = malloc(sizeof *args2);
+		args2->socket = n;
+		args2->fd = fd;
+
+    printf("[OUT] 1\n");
+		pthread_create(&thread_out, NULL, out_handler, args);
+    printf("[OUT] 2\n");
+    pthread_create(&thread_in, NULL, in_handler, args2);
+   
+
+    printf("[OUT] 3\n");
+
+    pthread_join(thread_out, NULL);
+    printf("[OUT] 4\n");
+    pthread_join(thread_in, NULL);
+    printf("[OUT] 5\n");
+
   return EXIT_SUCCESS;
 }
-
-
-
-
