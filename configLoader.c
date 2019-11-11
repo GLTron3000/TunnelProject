@@ -3,6 +3,15 @@
 #include <string.h>
 #include "configLoader.h"
 
+char* removeLastCaracter(char str[30]){
+	int len;
+	char* newStr = malloc(sizeof(char));
+	sprintf(newStr, "%s", str);
+	len = strlen(newStr);
+	if(newStr[len-1] == '\n')
+		newStr[len-1] = '\0';
+	return newStr;
+}
 
 void getConfig(char nameFile[30], struct Config *config){
 	
@@ -13,8 +22,8 @@ void getConfig(char nameFile[30], struct Config *config){
 	
 	file = fopen(chemin, "r");
 	char delim[] = "=";
-	char *ptr;
-	
+	char *ptr;	
+
 	if(file != NULL){
 	
 		char line[30];
@@ -26,7 +35,7 @@ void getConfig(char nameFile[30], struct Config *config){
 		fgets(line, 30, file);
 		ptr = strtok(line, delim);
 		ptr = strtok(NULL, delim);
-		sprintf(config->tun, "%s", ptr);
+		sprintf(config->tun, "%s", removeLastCaracter(ptr));
 
 		//Ignore 3eme ligne
 		fgets(line, 30, file);
@@ -35,19 +44,19 @@ void getConfig(char nameFile[30], struct Config *config){
 		fgets(line, 30, file);
 		ptr = strtok(line, delim);
 		ptr = strtok(NULL, delim);
-		sprintf(config->inip, "%s", ptr);
+		sprintf(config->inip, "%s", removeLastCaracter(ptr));
 		
 		//Lecture port local
 		fgets(line, 30, file);
 		ptr = strtok(line, delim);
 		ptr = strtok(NULL, delim);
-		sprintf(config->inport, "%s", ptr);
+		sprintf(config->inport, "%s", removeLastCaracter(ptr));
 
 		//Lecture options
 		fgets(line, 30, file);
 		ptr = strtok(line, delim);
 		ptr = strtok(NULL, delim);
-		sprintf(config->options, "%s", ptr);
+		sprintf(config->options, "%s", removeLastCaracter(ptr));
 		
 		//Ignore 7eme ligne
 		fgets(line, 30, file);		
@@ -56,14 +65,13 @@ void getConfig(char nameFile[30], struct Config *config){
 		fgets(line, 30, file);
 		ptr = strtok(line, delim);
 		ptr = strtok(NULL, delim);
-		sprintf(config->outip, "%s", ptr);
+		sprintf(config->outip, "%s", removeLastCaracter(ptr));
 
 		//Lecture port distant
 		fgets(line, 30, file);
 		ptr = strtok(line, delim);
 		ptr = strtok(NULL, delim);
-		sprintf(config->outport, "%s", ptr);
-
+		sprintf(config->outport, "%s", removeLastCaracter(ptr));
 	}
 }
 

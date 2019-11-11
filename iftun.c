@@ -43,7 +43,7 @@ void tun_load_config(char *dev, char *ip){
   strcpy(strUp, "ip link set ");
   strcat(strUp, dev);
   strcat(strUp, " up");
-  printf("| %s |\n", strUp);
+
   system(strUp);
 
 
@@ -52,7 +52,7 @@ void tun_load_config(char *dev, char *ip){
   strcat(strAddr, ip);
   strcat(strAddr, " dev ");
   strcat(strAddr, dev);
-  printf("| %s |\n", strAddr);
+
   system(strAddr);
 }
 
