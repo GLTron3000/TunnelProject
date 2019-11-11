@@ -114,14 +114,11 @@ void * in_handler(void *args){
 
 
 
-int ext_in(char * hote, int fd)
+int ext_in(char * hote, int fd, char * port)
 {  
-  char * port; /* port TCP du serveur */   
   char ip[NI_MAXHOST]; /* adresse IPv4 en notation pointÃ©e */
   struct addrinfo *resol; /* struct pour la rÃ©solution de nom */
   int s; /* descripteur de socket */
-
-  port=PORT;
 
   /* RÃ©solution de l'hÃ´te */
   if ( getaddrinfo(hote,port,NULL, &resol) < 0 ){
@@ -156,24 +153,19 @@ int ext_in(char * hote, int fd)
   args->socket = s;
   args->fd = fd;
 
-  printf("[IN] 1\n");
   pthread_create(&thread_out, NULL, out_handler, args);
-  printf("[IN] 2\n");
   pthread_create(&thread_in, NULL, in_handler, args);
 
-  printf("[IN] 3\n");
 
   pthread_join(thread_out, NULL);
-  printf("[IN] 4\n");
   pthread_join(thread_in, NULL);
-  printf("[IN] 5\n");
 
   fprintf(stderr,"Fin de la session.\n");
   return EXIT_SUCCESS;
 }
 
 
-int ext_out(int fd)
+int ext_out(int fd, char * port)
 {
   int s,n; /* descripteurs de socket */
   int len,on; /* utilitaires divers */
@@ -182,11 +174,8 @@ int ext_out(int fd)
                            PF_INET,SOCK_STREAM,0, /* IP mode connectÃ© */
                            0,NULL,NULL,NULL};
   struct sockaddr_in client; /* adresse de socket du client */
-  char * port; /* Port pour le service */
   int err; /* code d'erreur */
   
-  port = PORT;
-
   err = getaddrinfo(NULL,port,&indic,&resol); 
   if (err<0){
     fprintf(stderr,"Résolution: %s\n",gai_strerror(err));
@@ -246,18 +235,13 @@ int ext_out(int fd)
 		args2->socket = n;
 		args2->fd = fd;
 
-    printf("[OUT] 1\n");
 		pthread_create(&thread_out, NULL, out_handler, args);
-    printf("[OUT] 2\n");
     pthread_create(&thread_in, NULL, in_handler, args2);
    
 
-    printf("[OUT] 3\n");
 
     pthread_join(thread_out, NULL);
-    printf("[OUT] 4\n");
     pthread_join(thread_in, NULL);
-    printf("[OUT] 5\n");
 
   return EXIT_SUCCESS;
 }

@@ -38,18 +38,21 @@ int tun_alloc(char *dev){
   return fd;
 }      
 
-void tun_load_config(char *dev){
+void tun_load_config(char *dev, char *ip){
   char strUp[80];
   strcpy(strUp, "ip link set ");
   strcat(strUp, dev);
   strcat(strUp, " up");
-
+  printf("| %s |\n", strUp);
   system(strUp);
 
 
   char strAddr[80];
-  strcpy(strAddr, "ip addr add 172.16.2.1/24 dev ");
+  strcpy(strAddr, "ip addr add ");
+  strcat(strAddr, ip);
+  strcat(strAddr, " dev ");
   strcat(strAddr, dev);
+  printf("| %s |\n", strAddr);
   system(strAddr);
 }
 

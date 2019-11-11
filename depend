@@ -1,3 +1,4 @@
+configLoader.o: configLoader.c configLoader.h
 extremite.o: extremite.c
 iftun.o: iftun.c
-main.o: main.c extremite.h iftun.h
+main.o: main.c extremite.h iftun.h configLoader.h

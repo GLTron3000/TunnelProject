@@ -6,9 +6,9 @@ RM      = rm -f
 CFLAGS  = -Wall -std=gnu99 -pedantic -O2
 LIBS    = -lpthread
 
-CFILES  = main.c extremite.c iftun.c
+CFILES  = main.c extremite.c iftun.c configLoader.c
 
-EXEC    = tunnel
+EXEC    = tunnel46d
 
 
 OBJECTS := $(CFILES:%.c=%.o)

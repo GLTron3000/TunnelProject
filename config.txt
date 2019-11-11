@@ -1,0 +1,9 @@
+# interface tun
+tun=tun0
+# adresse locale 
+inip=172.16.2.1/24
+inport=123
+options=
+# adresse distante
+outip=0.0.0.0
+outport=123
