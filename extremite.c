@@ -116,34 +116,44 @@ void * in_handler(void *args){
 
 int ext_in(char * hote, int fd, char * port)
 {  
-  char ip[NI_MAXHOST]; /* adresse IPv4 en notation pointÃ©e */
-  struct addrinfo *resol; /* struct pour la rÃ©solution de nom */
+  //char ip[NI_MAXHOST]; /* adresse IPv4 en notation pointÃ©e */
+  //struct addrinfo *resol; /* struct pour la rÃ©solution de nom */
+  struct sockaddr_in6 server_addr;
   int s; /* descripteur de socket */
 
   /* RÃ©solution de l'hÃ´te */
+  /*
   if ( getaddrinfo(hote,port,NULL, &resol) < 0 ){
     perror("résolution adresse");
     exit(2);
-  }
+  }*/
 
   /* On extrait l'addresse IP */
+  /*
   sprintf(ip,"%s",inet_ntoa(((struct sockaddr_in*)resol->ai_addr)->sin_addr));
-
+  */
   /* CrÃ©ation de la socket, de type TCP / IP */
   /* On ne considÃ¨re que la premiÃ¨re adresse renvoyÃ©e par getaddrinfo */
-  if ((s=socket(resol->ai_family,resol->ai_socktype, resol->ai_protocol))<0) {
+
+  if ((s=socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP))<0) {
     perror("allocation de socket");
     exit(3);
   }
   fprintf(stderr,"le n° de la socket est : %i\n",s);
 
+  //bzero((char *) &server_addr, sizeof(server_addr));
+
+  server_addr.sin6_family = AF_INET6;
+  server_addr.sin6_port = htons(atoi(port));
+  inet_pton(AF_INET6, hote, &server_addr.sin6_addr);
+
   /* Connexion */
-  fprintf(stderr, "Essai de connexion à %s (%s) sur le port %s\n\n", hote, ip, port);
-  if (connect(s, resol->ai_addr, sizeof(struct sockaddr_in)) < 0) {
+  fprintf(stderr, "Essai de connexion à %s sur le port %s\n\n", hote, port);
+  if (connect(s, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
     perror("connexion");
     exit(4);
   }
-  freeaddrinfo(resol); /* /!\ LibÃ©ration mÃ©:wqmoire */
+  //freeaddrinfo(resol); /* /!\ LibÃ©ration mÃ©:wqmoire */
 
 
   /* Session */
@@ -168,39 +178,46 @@ int ext_in(char * hote, int fd, char * port)
 int ext_out(int fd, char * port)
 {
   int s,n; /* descripteurs de socket */
-  int len,on; /* utilitaires divers */
-  struct addrinfo * resol; /* rÃ©solution */
-  struct addrinfo indic = {AI_PASSIVE, /* Toute interface */
-                           PF_INET,SOCK_STREAM,0, /* IP mode connectÃ© */
-                           0,NULL,NULL,NULL};
-  struct sockaddr_in client; /* adresse de socket du client */
-  int err; /* code d'erreur */
-  
+  int on; /* utilitaires divers */
+  //struct addrinfo * resol; /* rÃ©solution */
+  //struct addrinfo indic = {AI_PASSIVE, /* Toute interface */
+  //                         PF_INET,SOCK_STREAM,0, /* IP mode connectÃ© */
+  //                         0,NULL,NULL,NULL};
+  //struct sockaddr_in client; /* adresse de socket du client */
+  //int err; /* code d'erreur */
+
+  socklen_t client_addr_len;
+  struct sockaddr_in6 addr, client_addr;
+  addr.sin6_family = AF_INET6;
+  addr.sin6_port = htons(atoi(port));
+  addr.sin6_addr = in6addr_any;
+
+  /*
   err = getaddrinfo(NULL,port,&indic,&resol); 
   if (err<0){
     fprintf(stderr,"Résolution: %s\n",gai_strerror(err));
     exit(2);
   }
-
+  */
   /* CrÃ©ation de la socket, de type TCP / IP */
-  if ((s=socket(resol->ai_family,resol->ai_socktype,resol->ai_protocol))<0) {
+  if ((s=socket(AF_INET6, SOCK_STREAM, 0))<0) {
     perror("allocation de socket");
     exit(3);
   }
 
   /* On rend le port rÃ©utilisable rapidement /!\ */
   on = 1;
-  if (setsockopt(s,SOL_SOCKET,SO_REUSEADDR,&on,sizeof(on))<0) {
+  if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
     perror("option socket");
     exit(4);
   }
 
   /* Association de la socket s Ã  l'adresse obtenue par rÃ©solution */
-  if (bind(s,resol->ai_addr,sizeof(struct sockaddr_in))<0) {
+  if (bind(s, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
     perror("bind");
     exit(5);
   }
-  freeaddrinfo(resol); /* /!\ LibÃ©ration mÃ©moire */
+  //freeaddrinfo(resol); /* /!\ LibÃ©ration mÃ©moire */
 
   /* la socket est prÃªte Ã  recevoir */
   if (listen(s,SOMAXCONN)<0) {
@@ -208,13 +225,18 @@ int ext_out(int fd, char * port)
     exit(6);
   }
 
+
     /* attendre et gÃ©rer indÃ©finiment les connexions entrantes */
-    len=sizeof(struct sockaddr_in);
-    if( (n=accept(s,(struct sockaddr *)&client,(socklen_t*)&len)) < 0 ) {
+    //len=sizeof(struct sockaddr_in);
+    client_addr_len = sizeof(client_addr);
+    if( (n=accept(s,(struct sockaddr *)&client_addr, &client_addr_len)) < 0 ) {
       perror("accept");
       exit(7);
     }
+
+
     /* Nom rÃ©seau du client */
+    /*
     char hotec[NI_MAXHOST];  char portc[NI_MAXSERV];
     err = getnameinfo((struct sockaddr*)&client,len,hotec,NI_MAXHOST,portc,NI_MAXSERV,0);
     if (err < 0 ){
@@ -222,7 +244,7 @@ int ext_out(int fd, char * port)
     }else{ 
       fprintf(stderr,"accept! (%i) ip=%s port=%s\n",n,hotec,portc);
     }
-
+    */
 
     /* traitement */
     pthread_t thread_in;
